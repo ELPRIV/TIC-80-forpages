@@ -194,6 +194,14 @@ static void app_init(void)
     platform.input.mouse.x = platform.input.mouse.y = -1;
 }
 
+static void handleMouse()
+{
+    if((bool)platform.input.mouse.relative != sapp_mouse_locked())
+    {
+        sapp_lock_mouse(platform.input.mouse.relative ? true : false);
+    }
+}
+
 static void handleKeyboard()
 {
     tic80_input* input = &platform.input;
@@ -232,13 +240,23 @@ static void app_frame(void)
         sapp_quit();
     }
 
-    const tic80* product = &studio_mem(platform.studio)->product;
     tic80_input* input = &platform.input;
 
-    input->gamepads.data = 0;
+    handleMouse();
     handleKeyboard();
     studio_tick(platform.studio, platform.input);
 
+    if((platform.input.mouse.relative = 
+        studio_mem(platform.studio)->ram->input.mouse.relative))
+    {
+        input->mouse.rx = input->mouse.ry = 0;
+    }
+
+    input->mouse.scrollx = input->mouse.scrolly = 0;
+    platform.keyboard.text = '\0';
+    input->gamepads.data = 0;
+
+    const tic80* product = &studio_mem(platform.studio)->product;
     {
         sg_image_data imgdata;
         memset(&imgdata, 0, sizeof(imgdata));
@@ -253,9 +271,6 @@ static void app_frame(void)
         platform.audio.samples[i] = (float)product->samples.buffer[i] / SHRT_MAX;
 
     saudio_push(platform.audio.samples, product->samples.count / TIC80_SAMPLE_CHANNELS);
-        
-    input->mouse.scrollx = input->mouse.scrolly = 0;
-    platform.keyboard.text = '\0';
 
     sgl_set_context(sgl_default_context());
     sgl_defaults();
@@ -466,28 +481,36 @@ static void app_input(const sapp_event* event)
         handleKeydown(event->key_code, false);
         break;
     case SAPP_EVENTTYPE_CHAR:
-        if(event->char_code > 32 && event->char_code < 127)
+        if(event->char_code >= 32 && event->char_code < 127)
         {
             platform.keyboard.text = event->char_code;
         }
         break;
     case SAPP_EVENTTYPE_MOUSE_MOVE:
         {
-            Rect r = viewport();
-
-            s32 x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
-            s32 y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
-
-            sapp_show_mouse(x < 0 || y < 0 || x >= TIC80_FULLWIDTH || y >= TIC80_FULLHEIGHT);
-
-            if(sapp_mouse_shown())
+            if(sapp_mouse_locked())
             {
-                input->mouse.x = input->mouse.y = -1;
+                input->mouse.rx = event->mouse_dx;
+                input->mouse.ry = event->mouse_dy;
             }
             else
             {
-                input->mouse.x = CLAMP(x, 0, TIC80_FULLWIDTH - 1);
-                input->mouse.y = CLAMP(y, 0, TIC80_FULLHEIGHT - 1);                
+                Rect r = viewport();
+
+                s32 x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
+                s32 y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
+
+                sapp_show_mouse(x < 0 || y < 0 || x >= TIC80_FULLWIDTH || y >= TIC80_FULLHEIGHT);
+
+                if(sapp_mouse_shown())
+                {
+                    input->mouse.x = input->mouse.y = -1;
+                }
+                else
+                {
+                    input->mouse.x = CLAMP(x, 0, TIC80_FULLWIDTH - 1);
+                    input->mouse.y = CLAMP(y, 0, TIC80_FULLHEIGHT - 1);                
+                }                
             }
         }
         break;
