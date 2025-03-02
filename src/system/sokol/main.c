@@ -39,7 +39,7 @@
 #include <windows.h>
 #endif
 
-static struct
+typedef struct
 {
     Studio* studio;
     tic80_input input;
@@ -56,38 +56,30 @@ static struct
         float* samples;
     } audio;
 
-    char* clipboard;
-
     sg_image image;
     sg_sampler sampler;
     // sgl_pipeline pipeline;
 
-} platform;
+} App;
 
 void tic_sys_clipboard_set(const char* text)
 {
-    if(platform.clipboard)
-    {
-        free(platform.clipboard);
-        platform.clipboard = NULL;
-    }
-
-    platform.clipboard = strdup(text);
+    sapp_set_clipboard_string(text);
 }
 
 bool tic_sys_clipboard_has()
 {
-    return platform.clipboard != NULL;
+    return sapp_get_clipboard_string() && *sapp_get_clipboard_string();
 }
 
 char* tic_sys_clipboard_get()
 {
-    return platform.clipboard ? strdup(platform.clipboard) : NULL;
+    return strdup(sapp_get_clipboard_string());
 }
 
-void tic_sys_clipboard_free(const char* text)
+void tic_sys_clipboard_free(char* text)
 {
-    free((void*)text);
+    free(text);
 }
 
 u64 tic_sys_counter_get()
@@ -152,14 +144,17 @@ void tic_sys_default_mapping(tic_mapping* mapping)
     };
 }
 
-bool tic_sys_keyboard_text(char* text)
+bool tic_sys_keyboard_text(char* text, void *userdata)
 {
-    *text = platform.keyboard.text;
+    App *app = userdata;
+    *text = app->keyboard.text;
     return true;
 }
 
-static void app_init(void)
+static void app_init(void *userdata)
 {
+    App *app = userdata;
+
     sg_setup(&(sg_desc){
         .environment = sglue_environment(),
         // .logger.func = slog_func,
@@ -172,45 +167,45 @@ static void app_init(void)
 
     stm_setup();
 
-    platform.image = sg_make_image(&(sg_image_desc)
+    app->image = sg_make_image(&(sg_image_desc)
     {
         .width = TIC80_FULLWIDTH,
         .height = TIC80_FULLHEIGHT,
         .usage = SG_USAGE_STREAM,
     });
 
-    platform.sampler = sg_make_sampler(&(sg_sampler_desc)
+    app->sampler = sg_make_sampler(&(sg_sampler_desc)
     {
         .min_filter = SG_FILTER_NEAREST,
         .mag_filter = SG_FILTER_NEAREST,
     });
 
-    // platform.pipeline = sgl_make_pipeline(&(sg_pipeline_desc)
+    // app->pipeline = sgl_make_pipeline(&(sg_pipeline_desc)
     // {
 
     // });
 
-    platform.audio.samples = malloc(sizeof platform.audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
-    platform.input.mouse.x = platform.input.mouse.y = -1;
+    app->audio.samples = malloc(sizeof app->audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
+    app->input.mouse.x = app->input.mouse.y = -1;
 }
 
-static void handleMouse()
+static void handleMouse(App *app)
 {
-    if((bool)platform.input.mouse.relative != sapp_mouse_locked())
+    if((bool)app->input.mouse.relative != sapp_mouse_locked())
     {
-        sapp_lock_mouse(platform.input.mouse.relative ? true : false);
+        sapp_lock_mouse(app->input.mouse.relative ? true : false);
     }
 }
 
-static void handleKeyboard()
+static void handleKeyboard(App *app)
 {
-    tic80_input* input = &platform.input;
+    tic80_input* input = &app->input;
     input->keyboard.data = 0;
 
     enum{BufSize = COUNT_OF(input->keyboard.keys)};
 
-    for(s32 i = 0, c = 0; i < COUNT_OF(platform.keyboard.state) && c < BufSize; i++)
-        if(platform.keyboard.state[i])
+    for(s32 i = 0, c = 0; i < COUNT_OF(app->keyboard.state) && c < BufSize; i++)
+        if(app->keyboard.state[i])
             input->keyboard.keys[c++] = i;
 }
 
@@ -233,44 +228,46 @@ static Rect viewport()
     return (Rect){x, y, w, h};
 }
 
-static void app_frame(void)
+static void app_frame(void *userdata)
 {
-    if(studio_alive(platform.studio))
+    App *app = userdata;
+
+    if(studio_alive(app->studio))
     {
         sapp_quit();
     }
 
-    tic80_input* input = &platform.input;
+    tic80_input* input = &app->input;
 
-    handleMouse();
-    handleKeyboard();
-    studio_tick(platform.studio, platform.input);
+    handleMouse(app);
+    handleKeyboard(app);
+    studio_tick(app->studio, app->input);
 
-    if((platform.input.mouse.relative = 
-        studio_mem(platform.studio)->ram->input.mouse.relative))
+    if((app->input.mouse.relative = 
+        studio_mem(app->studio)->ram->input.mouse.relative))
     {
         input->mouse.rx = input->mouse.ry = 0;
     }
 
     input->mouse.scrollx = input->mouse.scrolly = 0;
-    platform.keyboard.text = '\0';
+    app->keyboard.text = '\0';
     input->gamepads.data = 0;
 
-    const tic80* product = &studio_mem(platform.studio)->product;
+    const tic80* product = &studio_mem(app->studio)->product;
     {
         sg_image_data imgdata;
         memset(&imgdata, 0, sizeof(imgdata));
 
         sg_range range = {product->screen, TIC80_FULLWIDTH * TIC80_FULLHEIGHT * sizeof *product->screen};
         imgdata.subimage[0][0] = range;
-        sg_update_image(platform.image, &imgdata);
+        sg_update_image(app->image, &imgdata);
     }
 
-    studio_sound(platform.studio);
+    studio_sound(app->studio);
     for(s32 i = 0; i < product->samples.count; i++)
-        platform.audio.samples[i] = (float)product->samples.buffer[i] / SHRT_MAX;
+        app->audio.samples[i] = (float)product->samples.buffer[i] / SHRT_MAX;
 
-    saudio_push(platform.audio.samples, product->samples.count / TIC80_SAMPLE_CHANNELS);
+    saudio_push(app->audio.samples, product->samples.count / TIC80_SAMPLE_CHANNELS);
 
     sgl_set_context(sgl_default_context());
     sgl_defaults();
@@ -279,13 +276,13 @@ static void app_frame(void)
     sgl_ortho(0, sapp_widthf(), sapp_heightf(), 0, -1, +1);
 
     // sgl_push_pipeline();
-    // sgl_load_pipeline(platform.pipeline);
+    // sgl_load_pipeline(app->pipeline);
 
     {
         Rect r = viewport();
 
         sgl_enable_texture();
-        sgl_texture(platform.image, platform.sampler);
+        sgl_texture(app->image, app->sampler);
         sgl_begin_quads();
         sgl_v2f_t2f(r.x + 0,   r.y + 0,   0, 0);
         sgl_v2f_t2f(r.x + r.w, r.y + 0,   1, 0);
@@ -315,7 +312,7 @@ static void app_frame(void)
 
 }
 
-static void handleKeydown(sapp_keycode keycode, bool down)
+static void handleKeydown(App *app, sapp_keycode keycode, bool down)
 {
     static const tic_keycode KeyboardCodes[] = 
     {
@@ -448,16 +445,16 @@ static void handleKeydown(sapp_keycode keycode, bool down)
     if(key > tic_key_unknown)
     {
         // ALT+TAB fix
-        if(key == tic_key_tab && platform.keyboard.state[tic_key_alt])
-            platform.keyboard.state[tic_key_alt] = false;
+        if(key == tic_key_tab && app->keyboard.state[tic_key_alt])
+            app->keyboard.state[tic_key_alt] = false;
 
-        platform.keyboard.state[key] = down;
+        app->keyboard.state[key] = down;
     }
 }
 
-static void processMouse(sapp_mousebutton btn, s32 down)
+static void processMouse(App *app, sapp_mousebutton btn, s32 down)
 {
-    tic80_input* input = &platform.input;
+    tic80_input* input = &app->input;
 
     switch(btn)
     {
@@ -468,22 +465,23 @@ static void processMouse(sapp_mousebutton btn, s32 down)
     }
 }
 
-static void app_input(const sapp_event* event)
+static void app_event(const sapp_event* event, void *userdata)
 {
-    tic80_input* input = &platform.input;
+    App *app = userdata;
+    tic80_input* input = &app->input;
 
     switch(event->type)
     {
     case SAPP_EVENTTYPE_KEY_DOWN:
-        handleKeydown(event->key_code, true);
+        handleKeydown(app, event->key_code, true);
         break;
     case SAPP_EVENTTYPE_KEY_UP:
-        handleKeydown(event->key_code, false);
+        handleKeydown(app, event->key_code, false);
         break;
     case SAPP_EVENTTYPE_CHAR:
         if(event->char_code >= 32 && event->char_code < 127)
         {
-            platform.keyboard.text = event->char_code;
+            app->keyboard.text = event->char_code;
         }
         break;
     case SAPP_EVENTTYPE_MOUSE_MOVE:
@@ -515,27 +513,34 @@ static void app_input(const sapp_event* event)
         }
         break;
     case SAPP_EVENTTYPE_MOUSE_DOWN: 
-        processMouse(event->mouse_button, 1); break;
+        processMouse(app, event->mouse_button, 1); break;
         break;
     case SAPP_EVENTTYPE_MOUSE_UP:
-        processMouse(event->mouse_button, 0); break;
+        processMouse(app, event->mouse_button, 0); break;
         break;
     case SAPP_EVENTTYPE_MOUSE_SCROLL:
         input->mouse.scrollx = event->scroll_x;
         input->mouse.scrolly = event->scroll_y;
+        break;
+    case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
+        sapp_get_clipboard_string();
         break;
     default:
         break;
     }
 }
 
-static void app_cleanup(void)
+static void app_cleanup(void *userdata)
 {
-    studio_delete(platform.studio);
-    free(platform.audio.samples);
+    App *app = userdata;
 
-    sg_destroy_image(platform.image);
-    sg_destroy_sampler(platform.sampler);
+    studio_delete(app->studio);
+    free(app->audio.samples);
+
+    sg_destroy_image(app->image);
+    sg_destroy_sampler(app->sampler);
+
+    free(app);
 
     sgl_shutdown();
     sg_shutdown();
@@ -552,35 +557,38 @@ sapp_desc sokol_main(s32 argc, char* argv[])
     }
 #endif
 
-    memset(&platform, 0, sizeof platform);
+    App *app = NEW(App);
+    memset(app, 0, sizeof *app);
 
-    platform.audio.desc.num_channels = TIC80_SAMPLE_CHANNELS;
-    saudio_setup(&platform.audio.desc);
+    app->audio.desc.num_channels = TIC80_SAMPLE_CHANNELS;
+    saudio_setup(&app->audio.desc);
 
-    platform.studio = studio_create(argc, argv, saudio_sample_rate(), TIC80_PIXEL_COLOR_RGBA8888, "./", INT32_MAX, tic_layout_qwerty);
+    app->studio = studio_create(argc, argv, saudio_sample_rate(), TIC80_PIXEL_COLOR_RGBA8888, "./", INT32_MAX, tic_layout_qwerty, app);
 
-    if(studio_config(platform.studio)->cli)
+    if(studio_config(app->studio)->cli)
     {
-        while (!studio_alive(platform.studio))
-            studio_tick(platform.studio, platform.input);
+        while (!studio_alive(app->studio))
+            studio_tick(app->studio, app->input);
 
         exit(0);
     }
 
-    const s32 Width = TIC80_FULLWIDTH * studio_config(platform.studio)->uiScale;
-    const s32 Height = TIC80_FULLHEIGHT * studio_config(platform.studio)->uiScale;
-
     return(sapp_desc)
     {
-        .init_cb = app_init,
-        .frame_cb = app_frame,
-        .event_cb = app_input,
-        .cleanup_cb = app_cleanup,
-        .width = Width,
-        .height = Height,
+        .user_data = app,
+
+        .init_userdata_cb = app_init,
+        .frame_userdata_cb = app_frame,
+        .cleanup_userdata_cb = app_cleanup,
+        .event_userdata_cb = app_event,
+
+        .width = TIC80_FULLWIDTH * studio_config(app->studio)->uiScale,
+        .height = TIC80_FULLHEIGHT * studio_config(app->studio)->uiScale,
         .window_title = TIC_TITLE,
         .ios_keyboard_resizes_canvas = true,
         .high_dpi = true,
         // .logger = {.func = slog_func}
+        .enable_clipboard = true,
+        .clipboard_size = TIC_CODE_SIZE,
     };
 }

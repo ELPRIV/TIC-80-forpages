@@ -4065,19 +4065,16 @@ static void copyFromClipboard(Console* console)
 {
     if(tic_sys_clipboard_has())
     {
-        const char* clipboard = tic_sys_clipboard_get();
+        char* clipboard = tic_sys_clipboard_get();
 
         if(clipboard)
         {
-            char* text = strdup(clipboard);
-
-            char* dst = text;
+            char* dst = clipboard;
             for(const char* src = clipboard; *src; src++)
                 if(isprint(*src))
                     *dst++ = *src;
 
-            insertInputText(console, text);
-            free(text);
+            insertInputText(console, clipboard);
 
             tic_sys_clipboard_free(clipboard);
         }

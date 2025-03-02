@@ -228,6 +228,7 @@ struct Studio
     s32 samplerate;
     tic_font systemFont;
 
+    void *userdata;
 };
 
 #if defined(BUILD_EDITORS)
@@ -408,7 +409,7 @@ void sfx_stop(tic_mem* tic, s32 channel)
 char getKeyboardText(Studio* studio)
 {
     char text;
-    if(!tic_sys_keyboard_text(&text))
+    if(!tic_sys_keyboard_text(&text, studio->userdata))
     {
         tic_mem* tic = studio->tic;
         tic80_input* input = &tic->ram->input;
@@ -2695,7 +2696,7 @@ static bool onEnumModule(const char* name, const char* title, const char* hash, 
 }
 #endif
 
-Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_format format, const char* folder, s32 maxscale, tic_layout keyboardLayout)
+Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_format format, const char* folder, s32 maxscale, tic_layout keyboardLayout, void *userdata)
 {
     setbuf(stdout, NULL);
 
@@ -2751,6 +2752,7 @@ Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_f
         .bytebattle = {0},
 #endif
         .tic = tic_core_create(samplerate, format),
+        .userdata = userdata,
     };
 
     {
