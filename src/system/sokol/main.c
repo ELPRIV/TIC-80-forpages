@@ -191,11 +191,7 @@ static void app_init(void)
     // });
 
     platform.audio.samples = malloc(sizeof platform.audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
-}
-
-static void handleMouse()
-{
-
+    platform.input.mouse.x = platform.input.mouse.y = -1;
 }
 
 static void handleKeyboard()
@@ -210,6 +206,25 @@ static void handleKeyboard()
             input->keyboard.keys[c++] = i;
 }
 
+typedef struct
+{
+    float x, y, w, h;
+} Rect;
+
+static Rect viewport()
+{
+    float widthRatio = sapp_widthf() / TIC80_FULLWIDTH;
+    float heightRatio = sapp_heightf() / TIC80_FULLHEIGHT;
+    float optimalSize = widthRatio < heightRatio ? widthRatio : heightRatio;
+
+    float w = TIC80_FULLWIDTH * optimalSize;
+    float h = TIC80_FULLHEIGHT * optimalSize;
+    float x = sapp_widthf() / 2 - w / 2;
+    float y = sapp_heightf() / 2 - h / 2;
+
+    return (Rect){x, y, w, h};
+}
+
 static void app_frame(void)
 {
     if(studio_alive(platform.studio))
@@ -222,7 +237,6 @@ static void app_frame(void)
 
     input->gamepads.data = 0;
     handleKeyboard();
-    handleMouse();
     studio_tick(platform.studio, platform.input);
 
     {
@@ -253,22 +267,15 @@ static void app_frame(void)
     // sgl_load_pipeline(platform.pipeline);
 
     {
-        float widthRatio = sapp_widthf() / TIC80_FULLWIDTH;
-        float heightRatio = sapp_heightf() / TIC80_FULLHEIGHT;
-        float optimalSize = widthRatio < heightRatio ? widthRatio : heightRatio;
-
-        float w = TIC80_FULLWIDTH * optimalSize;
-        float h = TIC80_FULLHEIGHT * optimalSize;
-        float x = sapp_widthf() / 2 - w / 2;
-        float y = sapp_heightf() / 2 - h / 2;
+        Rect r = viewport();
 
         sgl_enable_texture();
         sgl_texture(platform.image, platform.sampler);
         sgl_begin_quads();
-        sgl_v2f_t2f(x + 0, y + 0, 0, 0);
-        sgl_v2f_t2f(x + w, y + 0, 1, 0);
-        sgl_v2f_t2f(x + w, y + h, 1, 1);
-        sgl_v2f_t2f(x + 0, y + h, 0, 1);
+        sgl_v2f_t2f(r.x + 0,   r.y + 0,   0, 0);
+        sgl_v2f_t2f(r.x + r.w, r.y + 0,   1, 0);
+        sgl_v2f_t2f(r.x + r.w, r.y + r.h, 1, 1);
+        sgl_v2f_t2f(r.x + 0,   r.y + r.h, 0, 1);
         sgl_end();
         sgl_disable_texture();
     }
@@ -466,18 +473,21 @@ static void app_input(const sapp_event* event)
         break;
     case SAPP_EVENTTYPE_MOUSE_MOVE:
         {
-            struct {s32 x, y, w, h;}rect;
-            // sokol_calc_viewport(&rect.x, &rect.y, &rect.w, &rect.h);
+            Rect r = viewport();
 
-            if (rect.w) {
-                s32 temp_x = ((s32)event->mouse_x - rect.x) * TIC80_FULLWIDTH / rect.w;
-                if (temp_x < 0) temp_x = 0; else if (temp_x >= TIC80_FULLWIDTH) temp_x = TIC80_FULLWIDTH-1; // clip: 0 to TIC80_FULLWIDTH-1
-                input->mouse.x = temp_x;
+            s32 x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
+            s32 y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
+
+            sapp_show_mouse(x < 0 || y < 0 || x >= TIC80_FULLWIDTH || y >= TIC80_FULLHEIGHT);
+
+            if(sapp_mouse_shown())
+            {
+                input->mouse.x = input->mouse.y = -1;
             }
-            if (rect.h) {
-                s32 temp_y = ((s32)event->mouse_y - rect.y) * TIC80_FULLHEIGHT / rect.h;
-                if (temp_y < 0) temp_y = 0; else if (temp_y >= TIC80_FULLHEIGHT) temp_y = TIC80_FULLHEIGHT-1; // clip: 0 to TIC80_FULLHEIGHT-1
-                input->mouse.y = temp_y;
+            else
+            {
+                input->mouse.x = CLAMP(x, 0, TIC80_FULLWIDTH - 1);
+                input->mouse.y = CLAMP(y, 0, TIC80_FULLHEIGHT - 1);                
             }
         }
         break;
