@@ -1716,7 +1716,7 @@ static inline bool keyWasPressedOnce(Studio* studio, s32 key)
 
 static void gotoFullscreen(Studio* studio)
 {
-    tic_sys_fullscreen_set(studio->config->data.options.fullscreen = !tic_sys_fullscreen_get());
+    tic_sys_fullscreen_set(studio->config->data.options.fullscreen = !tic_sys_fullscreen_get(), studio->userdata);
 }
 
 #if defined(CRT_SHADER_SUPPORT)
@@ -2692,6 +2692,11 @@ static bool onEnumModule(const char* name, const char* title, const char* hash, 
     return true;
 }
 #endif
+
+void *studioUserdata(Studio* studio)
+{
+    return studio->userdata;
+}
 
 Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_format format, const char* folder, s32 maxscale, tic_layout keyboardLayout, void *userdata)
 {

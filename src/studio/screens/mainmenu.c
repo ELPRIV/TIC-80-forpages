@@ -96,7 +96,7 @@ static s32 optionFullscreenGet(void* data)
 static void optionFullscreenSet(void* data, s32 pos)
 {
     StudioMainMenu* main = data;
-    tic_sys_fullscreen_set(main->options->fullscreen = (pos == 1));
+    tic_sys_fullscreen_set(main->options->fullscreen = (pos == 1), studioUserdata(main->studio));
 }
 
 static const char OffValue[] =  "OFF";

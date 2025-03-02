@@ -217,6 +217,7 @@ void studioConfigChanged(Studio* studio);
 void setStudioMode(Studio* studio, EditorMode mode);
 EditorMode getStudioMode(Studio* studio);
 void exitStudio(Studio* studio);
+void *studioUserdata(Studio* studio);
 
 void setStudioViMode(Studio* studio, ViMode mode);
 ViMode getStudioViMode(Studio* studio);

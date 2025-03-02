@@ -46,6 +46,11 @@ typedef struct
 
     struct
     {
+        s32 x, y, dx, dy;
+    } mouse;
+
+    struct
+    {
         bool state[tic_keys_count];
         char text;
     } keyboard;
@@ -92,13 +97,18 @@ u64 tic_sys_freq_get()
     return 1000000000;
 }
 
-void tic_sys_fullscreen_set(bool value)
+void tic_sys_fullscreen_set(bool value, void *userdata)
 {
+    App *app = userdata;
+    sapp_toggle_fullscreen();
+
+    // reset keyboard state to prevent key repeating
+    ZEROMEM(app->keyboard.state);
 }
 
 bool tic_sys_fullscreen_get()
 {
-    return false;
+    return sapp_is_fullscreen();
 }
 
 void tic_sys_message(const char* title, const char* message)
@@ -186,14 +196,39 @@ static void app_init(void *userdata)
     // });
 
     app->audio.samples = malloc(sizeof app->audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
-    app->input.mouse.x = app->input.mouse.y = -1;
+    app->mouse.x = app->mouse.y = TIC80_FULLWIDTH;
 }
 
 static void handleMouse(App *app)
 {
-    if((bool)app->input.mouse.relative != sapp_mouse_locked())
+    tic80_input *input = &app->input;
+
+    if((bool)input->mouse.relative != sapp_mouse_locked())
     {
-        sapp_lock_mouse(app->input.mouse.relative ? true : false);
+        sapp_lock_mouse(input->mouse.relative ? true : false);
+    }
+
+    sapp_show_mouse(app->mouse.x < 0 
+        || app->mouse.y < 0 
+        || app->mouse.x >= TIC80_FULLWIDTH 
+        || app->mouse.y >= TIC80_FULLHEIGHT);
+
+    if(sapp_mouse_shown())
+    {
+        input->mouse.x = input->mouse.y = -1;
+    }
+    else
+    {
+        if(sapp_mouse_locked())
+        {
+            input->mouse.rx = app->mouse.dx;
+            input->mouse.ry = app->mouse.dy;
+        }
+        else
+        {
+            input->mouse.x = CLAMP(app->mouse.x, 0, TIC80_FULLWIDTH - 1);
+            input->mouse.y = CLAMP(app->mouse.y, 0, TIC80_FULLHEIGHT - 1);            
+        }
     }
 }
 
@@ -243,12 +278,9 @@ static void app_frame(void *userdata)
     handleKeyboard(app);
     studio_tick(app->studio, app->input);
 
-    if((app->input.mouse.relative = 
-        studio_mem(app->studio)->ram->input.mouse.relative))
-    {
-        input->mouse.rx = input->mouse.ry = 0;
-    }
+    app->input.mouse.relative = studio_mem(app->studio)->ram->input.mouse.relative;
 
+    app->mouse.dx = app->mouse.dy = 0;
     input->mouse.scrollx = input->mouse.scrolly = 0;
     app->keyboard.text = '\0';
     input->gamepads.data = 0;
@@ -484,32 +516,17 @@ static void app_event(const sapp_event* event, void *userdata)
             app->keyboard.text = event->char_code;
         }
         break;
+    case SAPP_EVENTTYPE_MOUSE_LEAVE:
+        app->mouse.x = app->mouse.y = TIC80_FULLWIDTH;
+        break;
     case SAPP_EVENTTYPE_MOUSE_MOVE:
         {
-            if(sapp_mouse_locked())
-            {
-                input->mouse.rx = event->mouse_dx;
-                input->mouse.ry = event->mouse_dy;
-            }
-            else
-            {
-                Rect r = viewport();
+            Rect r = viewport();
 
-                s32 x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
-                s32 y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
-
-                sapp_show_mouse(x < 0 || y < 0 || x >= TIC80_FULLWIDTH || y >= TIC80_FULLHEIGHT);
-
-                if(sapp_mouse_shown())
-                {
-                    input->mouse.x = input->mouse.y = -1;
-                }
-                else
-                {
-                    input->mouse.x = CLAMP(x, 0, TIC80_FULLWIDTH - 1);
-                    input->mouse.y = CLAMP(y, 0, TIC80_FULLHEIGHT - 1);                
-                }                
-            }
+            app->mouse.x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
+            app->mouse.y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
+            app->mouse.dx = event->mouse_dx;
+            app->mouse.dy = event->mouse_dy;
         }
         break;
     case SAPP_EVENTTYPE_MOUSE_DOWN: 
@@ -519,8 +536,7 @@ static void app_event(const sapp_event* event, void *userdata)
         processMouse(app, event->mouse_button, 0); break;
         break;
     case SAPP_EVENTTYPE_MOUSE_SCROLL:
-        input->mouse.scrollx = event->scroll_x;
-        input->mouse.scrolly = event->scroll_y;
+        input->mouse.scrolly = event->scroll_y > 0 ? 1 : -1;
         break;
     case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
         sapp_get_clipboard_string();
