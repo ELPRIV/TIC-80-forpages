@@ -128,10 +128,7 @@ typedef struct
 
     struct StudioOptions
     {
-#if defined(CRT_SHADER_SUPPORT)
         bool crt;
-#endif
-
         bool fullscreen;
         bool vsync;
         bool integerScale;

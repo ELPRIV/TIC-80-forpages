@@ -60,13 +60,6 @@
 #define CART_EXT ".tic"
 #define PNG_EXT ".png"
 
-#if defined(CRT_SHADER_SUPPORT)
-#   define CRT_CMD_PARAM(macro)                                 \
-    macro(crt, bool, BOOLEAN, "", "enable CRT monitor effect")
-#else
-#   define CRT_CMD_PARAM(macro)
-#endif
-
 #define CMD_PARAMS_LIST(macro)                                                              \
     macro(skip,         int,    BOOLEAN,    "",         "skip startup animation")           \
     macro(volume,       s32,    INTEGER,    "=<int>",   "global volume value [0-15]")       \
@@ -79,7 +72,7 @@
     macro(cmd,          char*,  STRING,     "=<str>",   "run commands in the console")      \
     macro(keepcmd,      int,    BOOLEAN,    "",         "re-execute commands on every run") \
     macro(version,      int,    BOOLEAN,    "",         "print program version")            \
-    CRT_CMD_PARAM(macro)
+    macro(crt,          bool,   BOOLEAN,    "",         "enable CRT monitor effect")
 
 #define SHOW_TOOLTIP(STUDIO, FORMAT, ...)   \
 do{                                         \

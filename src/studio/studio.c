@@ -1719,12 +1719,10 @@ static void gotoFullscreen(Studio* studio)
     tic_sys_fullscreen_set(studio->config->data.options.fullscreen = !tic_sys_fullscreen_get(), studio->userdata);
 }
 
-#if defined(CRT_SHADER_SUPPORT)
 static void switchCrtMonitor(Studio* studio)
 {
     studio->config->data.options.crt = !studio->config->data.options.crt;
 }
-#endif
 
 #if defined(BUILD_EDITORS)
 static u32 getTime()
@@ -1818,9 +1816,7 @@ static void processShortcuts(Studio* studio)
     bool alt = tic_api_key(tic, tic_key_alt);
     bool ctrl = tic_api_key(tic, tic_key_ctrl);
 
-#if defined(CRT_SHADER_SUPPORT)
     if(keyWasPressedOnce(studio, tic_key_f6)) switchCrtMonitor(studio);
-#endif
 
     if(alt)
     {
@@ -2359,7 +2355,7 @@ static void blitCursor(Studio* studio)
 
         for(s32 y = s.y, endy = MIN(y + TIC_SPRITESIZE, TIC80_FULLHEIGHT), i = 0; y != endy; ++y, dst += TIC80_FULLWIDTH - TIC_SPRITESIZE)
             for(s32 x = s.x, endx = x + TIC_SPRITESIZE; x != endx; ++x, ++i, ++dst)
-                if(x < TIC80_FULLWIDTH)
+                if(x >= 0 && x < TIC80_FULLWIDTH)
                 {
                     u8 c = tic_tool_peek4(tile->data, i);
                     if(c)
@@ -2839,10 +2835,7 @@ Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_f
     if(args.volume >= 0)
         studio->config->data.options.volume = args.volume & 0x0f;
 
-#if defined(CRT_SHADER_SUPPORT)
     studio->config->data.options.crt        |= args.crt;
-#endif
-
     studio->config->data.options.fullscreen |= args.fullscreen;
     studio->config->data.options.vsync      |= args.vsync;
     studio->config->data.soft               |= args.soft;

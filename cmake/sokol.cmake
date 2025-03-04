@@ -8,13 +8,13 @@ set(SOKOL_LIB_SRC ${CMAKE_SOURCE_DIR}/src/system/sokol/sokol.c)
 add_library(sokol STATIC ${SOKOL_LIB_SRC})
 
 if(APPLE)
-    target_compile_definitions(sokol PRIVATE SOKOL_METAL)
+    target_compile_definitions(sokol PUBLIC SOKOL_METAL)
 elseif(LINUX)
-    target_compile_definitions(sokol PRIVATE SOKOL_GLCORE)
+    target_compile_definitions(sokol PUBLIC SOKOL_GLCORE)
 elseif(WIN32)
-    target_compile_definitions(sokol PRIVATE SOKOL_D3D11)
+    target_compile_definitions(sokol PUBLIC SOKOL_D3D11)
 elseif(EMSCRIPTEN)
-    target_compile_definitions(sokol PRIVATE SOKOL_WGPU)
+    target_compile_definitions(sokol PUBLIC SOKOL_WGPU)
 endif()
 
 if(APPLE)
@@ -60,12 +60,26 @@ endif()
 
 if(BUILD_SOKOL)
 
-    set(TIC80_SRC ${CMAKE_SOURCE_DIR}/src/system/sokol/main.c)
+    # !TODO: make it working on CI
+    # if(APPLE)
+    #     set(SHDC osx_arm64/sokol-shdc)
+    # else()
+    #     set(SHDC win32/sokol-shdc.exe)
+    # endif()
+
+    # add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/build/crt.h
+    #     COMMAND ${CMAKE_SOURCE_DIR}/vendor/sokol-tools-bin/bin/${SHDC} -i ${CMAKE_SOURCE_DIR}/src/system/sokol/crt.glsl -o ${CMAKE_SOURCE_DIR}/build/crt.h -l glsl410:glsl300es:hlsl4:metal_macos:metal_ios --ifdef
+    #     DEPENDS ${CMAKE_SOURCE_DIR}/src/system/sokol/crt.glsl)
+
+    set(TIC80_SRC 
+        ${CMAKE_SOURCE_DIR}/src/system/sokol/main.c
+        ${CMAKE_SOURCE_DIR}/build/crt.h
+    )
 
     if(WIN32)
 
-        configure_file("${PROJECT_SOURCE_DIR}/build/windows/tic80.rc.in" "${PROJECT_SOURCE_DIR}/build/windows/tic80.rc")
-        set(TIC80_SRC ${TIC80_SRC} "${PROJECT_SOURCE_DIR}/build/windows/tic80.rc")
+        configure_file("${CMAKE_SOURCE_DIR}/build/windows/tic80.rc.in" "${CMAKE_SOURCE_DIR}/build/windows/tic80.rc")
+        set(TIC80_SRC ${TIC80_SRC} "${CMAKE_SOURCE_DIR}/build/windows/tic80.rc")
 
         add_executable(tic80 WIN32 ${TIC80_SRC})
     else()

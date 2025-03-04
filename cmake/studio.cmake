@@ -59,10 +59,6 @@ if(BUILD_PRO)
     target_compile_definitions(tic80studio PRIVATE TIC80_PRO)
 endif()
 
-if(BUILD_SDLGPU)
-    target_compile_definitions(tic80studio PUBLIC CRT_SHADER_SUPPORT)
-endif()
-
 if(BUILD_EDITORS)
     target_compile_definitions(tic80studio PUBLIC BUILD_EDITORS)
 endif()

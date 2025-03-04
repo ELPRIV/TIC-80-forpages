@@ -28,7 +28,6 @@ set(BUILD_STATIC_DEFAULT ON)
 
 set(BUILD_PLAYER_DEFAULT OFF)
 set(BUILD_LIBRETRO_DEFAULT OFF)
-set(BUILD_TOUCH_INPUT_DEFAULT ${ANDROID})
 set(BUILD_WITH_ALL_DEFAULT OFF)
 
 option(BUILD_STATIC "Static runtime" ${BUILD_STATIC_DEFAULT})
@@ -39,7 +38,6 @@ option(BUILD_TOOLS "bin2txt prj2cart" OFF)
 option(BUILD_EDITORS "Build cart editors" ON)
 option(BUILD_PRO "Build PRO version" OFF)
 option(BUILD_PLAYER "Build standalone players" ${BUILD_PLAYER_DEFAULT})
-option(BUILD_TOUCH_INPUT "Build with touch input support" ${BUILD_TOUCH_INPUT_DEFAULT})
 option(BUILD_NO_OPTIMIZATION "Build without optimizations for debugging" OFF)
 option(BUILD_ASAN_DEBUG "Build with AddressSanitizer" OFF)
 option(BUILD_WITH_ZLIB "Build with zlib linked" ON)
@@ -62,7 +60,6 @@ target_compile_definitions(runtime INTERFACE BUILD_DEPRECATED)
 
 message("BUILD_STATIC: ${BUILD_STATIC}")
 message("BUILD_SOKOL: ${BUILD_SOKOL}")
-message("BUILD_TOUCH_INPUT: ${BUILD_TOUCH_INPUT}")
 message("BUILD_WITH_ALL: ${BUILD_WITH_ALL}")
 message("BUILD_PLAYER: ${BUILD_PLAYER}")
 

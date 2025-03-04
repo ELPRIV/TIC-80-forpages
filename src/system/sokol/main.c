@@ -33,11 +33,18 @@
 #include <sokol_glue.h>
 #include <util/sokol_gl.h>
 
+#if !defined(NDEBUG)
+#include <sokol_log.h>
+#endif
+
 #include "studio/system.h"
+#include "crt.h"
 
 #if defined(__TIC_WINDOWS__)
 #include <windows.h>
 #endif
+
+#define CRT_SCALE 4
 
 typedef struct
 {
@@ -61,9 +68,18 @@ typedef struct
         float* samples;
     } audio;
 
+    struct
+    {
+        sg_image image;
+        sg_shader shader;
+        sgl_context ctx;
+        sgl_pipeline pip;
+        sg_attachments att;
+    } crt;
+
     sg_image image;
-    sg_sampler sampler;
-    // sgl_pipeline pipeline;
+    sg_sampler linear;
+    sg_sampler nearest;
 
 } App;
 
@@ -161,18 +177,25 @@ bool tic_sys_keyboard_text(char* text, void *userdata)
     return true;
 }
 
-static void app_init(void *userdata)
+static void init(void *userdata)
 {
     App *app = userdata;
 
     sg_setup(&(sg_desc){
         .environment = sglue_environment(),
-        // .logger.func = slog_func,
+
+#if !defined(NDEBUG)
+        .logger = {.func = slog_func},
+#endif
     });
 
     sgl_setup(&(sgl_desc_t){
-        0
-        // .logger.func = slog_func,
+        .max_vertices = 6,
+        .max_commands = 1,
+        .sample_count = 1,
+#if !defined(NDEBUG)
+        .logger = {.func = slog_func},
+#endif
     });
 
     stm_setup();
@@ -184,16 +207,54 @@ static void app_init(void *userdata)
         .usage = SG_USAGE_STREAM,
     });
 
-    app->sampler = sg_make_sampler(&(sg_sampler_desc)
+    app->linear = sg_make_sampler(&(sg_sampler_desc)
     {
+        .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+        .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
+        .min_filter = SG_FILTER_LINEAR,
+        .mag_filter = SG_FILTER_LINEAR,
+    });
+
+    app->nearest = sg_make_sampler(&(sg_sampler_desc)
+    {
+        .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+        .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
         .min_filter = SG_FILTER_NEAREST,
         .mag_filter = SG_FILTER_NEAREST,
     });
 
-    // app->pipeline = sgl_make_pipeline(&(sg_pipeline_desc)
-    // {
+    // init crt
+    {
+        app->crt.ctx = sgl_make_context(&(sgl_context_desc_t)
+        {
+            .max_vertices = 6,
+            .max_commands = 1,
+            .color_format = SG_PIXELFORMAT_RGBA8,
+            .depth_format = SG_PIXELFORMAT_NONE,
+            .sample_count = 1,
+        });
 
-    // });
+        app->crt.image = sg_make_image(&(sg_image_desc)
+        {
+            .render_target = true,
+            .width = TIC80_FULLWIDTH * CRT_SCALE,
+            .height = TIC80_FULLHEIGHT * CRT_SCALE,
+            .pixel_format = SG_PIXELFORMAT_RGBA8,
+            .sample_count = 1,
+        });
+
+        app->crt.att = sg_make_attachments(&(sg_attachments_desc)
+        {
+            .colors[0].image = app->crt.image,
+        });
+
+        app->crt.shader = sg_make_shader(crt_shader_desc(sg_query_backend()));
+
+        app->crt.pip = sgl_context_make_pipeline(app->crt.ctx, &(sg_pipeline_desc)
+        {
+            .shader = app->crt.shader,
+        });
+    }
 
     app->audio.samples = malloc(sizeof app->audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
     app->mouse.x = app->mouse.y = TIC80_FULLWIDTH;
@@ -263,7 +324,20 @@ static Rect viewport()
     return (Rect){x, y, w, h};
 }
 
-static void app_frame(void *userdata)
+static void drawImage(Rect r,sg_image image, sg_sampler sampler)
+{
+    sgl_enable_texture();
+    sgl_texture(image, sampler);
+    sgl_begin_quads();
+    sgl_v2f_t2f(r.x + 0,   r.y + 0,   0, 0);
+    sgl_v2f_t2f(r.x + r.w, r.y + 0,   1, 0);
+    sgl_v2f_t2f(r.x + r.w, r.y + r.h, 1, 1);
+    sgl_v2f_t2f(r.x + 0,   r.y + r.h, 0, 1);
+    sgl_end();
+    sgl_disable_texture();
+}
+
+static void frame(void *userdata)
 {
     App *app = userdata;
 
@@ -286,13 +360,33 @@ static void app_frame(void *userdata)
     input->gamepads.data = 0;
 
     const tic80* product = &studio_mem(app->studio)->product;
+    sg_update_image(app->image, &(sg_image_data)
     {
-        sg_image_data imgdata;
-        memset(&imgdata, 0, sizeof(imgdata));
+        .subimage[0][0] = 
+        {
+            product->screen, 
+            TIC80_FULLWIDTH * TIC80_FULLHEIGHT * sizeof *product->screen,
+        },
+    });
 
-        sg_range range = {product->screen, TIC80_FULLWIDTH * TIC80_FULLHEIGHT * sizeof *product->screen};
-        imgdata.subimage[0][0] = range;
-        sg_update_image(app->image, &imgdata);
+    if(studio_config(app->studio)->options.crt)
+    {
+        sgl_set_context(app->crt.ctx);
+        sgl_defaults();
+        sgl_matrix_mode_modelview();
+        sgl_ortho(0, TIC80_FULLWIDTH * CRT_SCALE, TIC80_FULLHEIGHT * CRT_SCALE, 0, -1, +1);
+        sgl_push_pipeline();
+        sgl_load_pipeline(app->crt.pip);
+
+        drawImage((Rect)
+            {
+                0, 0, 
+                TIC80_FULLWIDTH * CRT_SCALE, 
+                TIC80_FULLHEIGHT * CRT_SCALE,
+            },
+            app->image, app->nearest);
+
+        sgl_pop_pipeline();
     }
 
     studio_sound(app->studio);
@@ -307,36 +401,41 @@ static void app_frame(void *userdata)
     sgl_matrix_mode_projection();
     sgl_ortho(0, sapp_widthf(), sapp_heightf(), 0, -1, +1);
 
-    // sgl_push_pipeline();
-    // sgl_load_pipeline(app->pipeline);
-
-    {
-        Rect r = viewport();
-
-        sgl_enable_texture();
-        sgl_texture(app->image, app->sampler);
-        sgl_begin_quads();
-        sgl_v2f_t2f(r.x + 0,   r.y + 0,   0, 0);
-        sgl_v2f_t2f(r.x + r.w, r.y + 0,   1, 0);
-        sgl_v2f_t2f(r.x + r.w, r.y + r.h, 1, 1);
-        sgl_v2f_t2f(r.x + 0,   r.y + r.h, 0, 1);
-        sgl_end();
-        sgl_disable_texture();
-    }
-
-    // sgl_pop_pipeline();
-
     sg_pass_action pass_action = 
     {
-        0
-        // .colors = 
-        // {{
-        //     .load_action = SG_LOADACTION_CLEAR,
-        //     .clear_value = 0xff0000ff,
-        // }}
+        .colors[0] = 
+        {
+            .load_action = SG_LOADACTION_CLEAR,
+            .clear_value = 0xff0000ff,
+        },
     };
 
-    sg_begin_pass(&(sg_pass){ .action = pass_action, .swapchain = sglue_swapchain() });
+    if(studio_config(app->studio)->options.crt)
+    {
+        drawImage(viewport(), app->crt.image, app->linear);
+
+        // draw crt
+        sg_begin_pass(&(sg_pass)
+        { 
+            .action = pass_action, 
+            .attachments = app->crt.att,
+        });
+
+        sgl_context_draw(app->crt.ctx);
+        sg_end_pass();
+    }
+    else
+    {
+        drawImage(viewport(), app->image, app->nearest);
+    }
+
+    // draw screen
+    sg_begin_pass(&(sg_pass)
+    {
+        .action = pass_action,
+        .swapchain = sglue_swapchain()
+    });
+
     sgl_context_draw(sgl_default_context());
     sg_end_pass();
 
@@ -497,7 +596,7 @@ static void processMouse(App *app, sapp_mousebutton btn, s32 down)
     }
 }
 
-static void app_event(const sapp_event* event, void *userdata)
+static void event(const sapp_event* event, void *userdata)
 {
     App *app = userdata;
     tic80_input* input = &app->input;
@@ -546,15 +645,25 @@ static void app_event(const sapp_event* event, void *userdata)
     }
 }
 
-static void app_cleanup(void *userdata)
+static void cleanup(void *userdata)
 {
     App *app = userdata;
 
     studio_delete(app->studio);
     free(app->audio.samples);
 
+    // destroy crt
+    {
+        sgl_destroy_pipeline(app->crt.pip);
+        sg_destroy_shader(app->crt.shader);
+        sg_destroy_attachments(app->crt.att);
+        sg_destroy_image(app->crt.image);
+        sgl_destroy_context(app->crt.ctx);
+    }
+
     sg_destroy_image(app->image);
-    sg_destroy_sampler(app->sampler);
+    sg_destroy_sampler(app->linear);
+    sg_destroy_sampler(app->nearest);
 
     free(app);
 
@@ -593,17 +702,19 @@ sapp_desc sokol_main(s32 argc, char* argv[])
     {
         .user_data = app,
 
-        .init_userdata_cb = app_init,
-        .frame_userdata_cb = app_frame,
-        .cleanup_userdata_cb = app_cleanup,
-        .event_userdata_cb = app_event,
+        .init_userdata_cb = init,
+        .frame_userdata_cb = frame,
+        .cleanup_userdata_cb = cleanup,
+        .event_userdata_cb = event,
 
         .width = TIC80_FULLWIDTH * studio_config(app->studio)->uiScale,
         .height = TIC80_FULLHEIGHT * studio_config(app->studio)->uiScale,
         .window_title = TIC_TITLE,
         .ios_keyboard_resizes_canvas = true,
         .high_dpi = true,
-        // .logger = {.func = slog_func}
+#if !defined(NDEBUG)
+        .logger = {.func = slog_func},
+#endif
         .enable_clipboard = true,
         .clipboard_size = TIC_CODE_SIZE,
     };

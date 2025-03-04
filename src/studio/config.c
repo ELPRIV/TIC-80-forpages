@@ -89,9 +89,7 @@ static void setDefault(Config* config)
         .uiScale = 4,
         .options =
         {
-#if defined(CRT_SHADER_SUPPORT)
             .crt            = false,
-#endif
             .volume         = MAX_VOLUME,
             .vsync          = DEFAULT_VSYNC,
             .fullscreen     = false,
@@ -172,9 +170,7 @@ static void loadOptions(Config* config)
         {
             struct StudioOptions* options = &config->data.options;
 
-#if defined(CRT_SHADER_SUPPORT)
             options->crt = json_bool("crt", 0);
-#endif
             options->fullscreen = json_bool("fullscreen", 0);
             options->vsync = json_bool("vsync", 0);
             options->integerScale = json_bool("integerScale", 0);
@@ -251,9 +247,7 @@ static void saveOptions(Config* config)
     string buf;
     sprintf(buf.data, JSON(
         {
-#if defined(CRT_SHADER_SUPPORT)
             "crt":%s,
-#endif
             "fullscreen":%s,
             "vsync":%s,
             "integerScale":%s,
@@ -268,9 +262,7 @@ static void saveOptions(Config* config)
 #endif
         })
         ,
-#if defined(CRT_SHADER_SUPPORT)
         bool2str(options->crt),
-#endif
         bool2str(options->fullscreen),
         bool2str(options->vsync),
         bool2str(options->integerScale),

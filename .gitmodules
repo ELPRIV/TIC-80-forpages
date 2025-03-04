@@ -82,3 +82,7 @@
 	path = vendor/pocketpy
 	url = https://github.com/PrimedErwin/pocketpy.git
 	shallow = true
+[submodule "vendor/sokol-tools-bin"]
+	path = vendor/sokol-tools-bin
+	url = https://github.com/floooh/sokol-tools-bin.git
+	shallow = true

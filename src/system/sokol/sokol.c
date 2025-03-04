@@ -28,3 +28,7 @@
 #include <sokol_audio.h>
 #include <sokol_glue.h>
 #include <util/sokol_gl.h>
+
+#if !defined(NDEBUG)
+#include <sokol_log.h>
+#endif

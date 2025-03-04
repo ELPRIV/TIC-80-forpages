@@ -128,7 +128,6 @@ static MenuOption IntegerScaleOption =
     optionIntegerScaleSet,
 };
 
-#if defined(CRT_SHADER_SUPPORT)
 static s32 optionCrtMonitorGet(void* data)
 {
     StudioMainMenu* main = data;
@@ -147,8 +146,6 @@ static MenuOption CrtMonitorOption =
     optionCrtMonitorGet,
     optionCrtMonitorSet,
 };
-
-#endif
 
 static s32 optionVSyncGet(void* data)
 {
@@ -300,9 +297,7 @@ static void showGamepadMenu(void* data, s32 pos)
 
 enum
 {
-#if defined(CRT_SHADER_SUPPORT)
     OptionsMenu_CrtMonitorOption,
-#endif
     OptionsMenu_VSyncOption,
     OptionsMenu_FullscreenOption,
     OptionsMenu_IntegerScaleOption,
@@ -317,9 +312,7 @@ enum
 
 static const MenuItem OptionMenu[] =
 {
-#if defined(CRT_SHADER_SUPPORT)
     {"CRT MONITOR",     NULL,   &CrtMonitorOption},
-#endif
     {"VSYNC",           NULL,   &VSyncOption, "VSYNC needs restart!"},
     {"FULLSCREEN",      NULL,   &FullscreenOption},
     {"INTEGER SCALE",   NULL,   &IntegerScaleOption},
