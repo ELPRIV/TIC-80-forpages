@@ -31,6 +31,7 @@
 #include <sokol_time.h>
 #include <sokol_audio.h>
 #include <sokol_glue.h>
+#include <util/sokol_color.h>
 #include <util/sokol_gl.h>
 
 #if !defined(NDEBUG)
@@ -401,15 +402,6 @@ static void frame(void *userdata)
     sgl_matrix_mode_projection();
     sgl_ortho(0, sapp_widthf(), sapp_heightf(), 0, -1, +1);
 
-    sg_pass_action pass_action = 
-    {
-        .colors[0] = 
-        {
-            .load_action = SG_LOADACTION_CLEAR,
-            .clear_value = 0xff0000ff,
-        },
-    };
-
     if(studio_config(app->studio)->options.crt)
     {
         drawImage(viewport(), app->crt.image, app->linear);
@@ -417,7 +409,6 @@ static void frame(void *userdata)
         // draw crt
         sg_begin_pass(&(sg_pass)
         { 
-            .action = pass_action, 
             .attachments = app->crt.att,
         });
 
@@ -432,7 +423,14 @@ static void frame(void *userdata)
     // draw screen
     sg_begin_pass(&(sg_pass)
     {
-        .action = pass_action,
+        .action = 
+        {
+            .colors[0] = 
+            {
+                .load_action = SG_LOADACTION_CLEAR,
+                .clear_value = sg_make_color_1i(0xff0000ff),
+            },
+        },
         .swapchain = sglue_swapchain()
     });
 
