@@ -2257,14 +2257,14 @@ static void doCodeExport(Studio* studio)
         sprintf(pos, "-- pos: %i,%i\n", x, y);
     }
 
-    if(strcmp(studio->bytebattle.last.postag, pos) || strcmp(studio->bytebattle.last.code.data, studio->code->src))
+    if(strcmp(studio->bytebattle.last.postag, pos) || strcmp(studio->bytebattle.last.code, studio->code->src))
     {
         FILE* file = fopen(studio->bytebattle.exp, "wb");
 
         if(file)
         {
             strcpy(studio->bytebattle.last.postag, pos);
-            strcpy(studio->bytebattle.last.code.data, studio->code->src);
+            strcpy(studio->bytebattle.last.code, studio->code->src);
 
             fwrite(pos, 1, strlen(pos), file);
             fwrite(studio->code->src, 1, strlen(studio->code->src), file);
@@ -2565,8 +2565,15 @@ void studio_delete(Studio* studio)
 #if defined(BUILD_EDITORS)
     tic_net_close(studio->net);
     free(studio->video.buffer);
-    if(studio->bytebattle.exp) free(studio->bytebattle.exp);
-    if(studio->bytebattle.imp) free(studio->bytebattle.imp);
+
+    if(studio->bytebattle.last.code) 
+        free(studio->bytebattle.last.code);
+
+    if(studio->bytebattle.exp) 
+        free(studio->bytebattle.exp);
+
+    if(studio->bytebattle.imp) 
+        free(studio->bytebattle.imp);
 #endif
 
     free(studio->fs);
@@ -2847,6 +2854,8 @@ Studio* studio_create(s32 argc, char **argv, s32 samplerate, tic80_pixel_color_f
     else if(args.codeimport)
         studio->bytebattle.imp = strdup(args.codeimport);
 
+    studio->bytebattle.last.code = malloc(TIC_CODE_SIZE);
+    memset(studio->bytebattle.last.code, 0, TIC_CODE_SIZE);
     studio->bytebattle.delay = args.delay;
     studio->bytebattle.limit.lower = args.lowerlimit;
 

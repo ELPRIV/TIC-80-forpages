@@ -560,11 +560,11 @@ static void handleKeydown(App *app, sapp_keycode keycode, bool down)
         [SAPP_KEYCODE_LEFT_SHIFT] = tic_key_shift,
         [SAPP_KEYCODE_LEFT_CONTROL] = tic_key_ctrl,
         [SAPP_KEYCODE_LEFT_ALT] = tic_key_alt,
-        [SAPP_KEYCODE_LEFT_SUPER] = tic_key_unknown,
+        [SAPP_KEYCODE_LEFT_SUPER] = tic_key_ctrl,
         [SAPP_KEYCODE_RIGHT_SHIFT] = tic_key_shift,
         [SAPP_KEYCODE_RIGHT_CONTROL] = tic_key_ctrl,
         [SAPP_KEYCODE_RIGHT_ALT] = tic_key_alt,
-        [SAPP_KEYCODE_RIGHT_SUPER] = tic_key_unknown,
+        [SAPP_KEYCODE_RIGHT_SUPER] = tic_key_ctrl,
         [SAPP_KEYCODE_MENU] = tic_key_unknown,
 
     };
@@ -634,9 +634,6 @@ static void event(const sapp_event* event, void *userdata)
         break;
     case SAPP_EVENTTYPE_MOUSE_SCROLL:
         input->mouse.scrolly = event->scroll_y > 0 ? 1 : -1;
-        break;
-    case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
-        sapp_get_clipboard_string();
         break;
     default:
         break;
