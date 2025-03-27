@@ -25,25 +25,12 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <math.h>
 
-#include <sokol_app.h>
-#include <sokol_gfx.h>
-#include <sokol_time.h>
-#include <sokol_audio.h>
-#include <sokol_glue.h>
-#include <util/sokol_color.h>
-#include <util/sokol_gl.h>
-
-#if !defined(NDEBUG)
-#include <sokol_log.h>
-#endif
+#include "sokol.h"
 
 #include "studio/system.h"
 #include "crt.h"
-
-#if defined(__TIC_WINDOWS__)
-#include <windows.h>
-#endif
 
 #define CRT_SCALE 4
 
@@ -259,6 +246,8 @@ static void init(void *userdata)
 
     app->audio.samples = malloc(sizeof app->audio.samples[0] * saudio_sample_rate() / TIC80_FRAMERATE * TIC80_SAMPLE_CHANNELS);
     app->mouse.x = app->mouse.y = TIC80_FULLWIDTH;
+
+    sgamepad_init();
 }
 
 static void handleMouse(App *app)
@@ -338,6 +327,55 @@ static void drawImage(Rect r,sg_image image, sg_sampler sampler)
     sgl_disable_texture();
 }
 
+static void handleGamepad(App *app)
+{    
+    sgamepad_record_state();
+
+    tic80_gamepads *gamepads = &app->input.gamepads;
+
+    for(s32 i = 0; i < MIN(sizeof(tic80_gamepads), sgamepad_get_max_supported_gamepads()); i++)
+    {
+        sgamepad_gamepad_state state;
+        sgamepad_get_gamepad_state(i, &state);
+
+        tic80_gamepad* gamepad = NULL;
+
+        switch(i)
+        {
+        case 0: gamepad = &gamepads->first; break;
+        case 1: gamepad = &gamepads->second; break;
+        case 2: gamepad = &gamepads->third; break;
+        case 3: gamepad = &gamepads->fourth; break;
+        }
+
+        gamepad->up = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_UP
+            || (s32)state.left_stick.normalized_y == -1
+            || (s32)state.right_stick.normalized_y == -1 ? 1 : 0;
+
+        gamepad->down = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_DOWN
+            || (s32)state.left_stick.normalized_y == 1
+            || (s32)state.right_stick.normalized_y == 1 ? 1 : 0;
+
+        gamepad->left = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_LEFT
+            || (s32)state.left_stick.normalized_x == -1
+            || (s32)state.right_stick.normalized_x == -1 ? 1 : 0;
+
+        gamepad->right = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_RIGHT
+            || (s32)state.left_stick.normalized_x == 1
+            || (s32)state.right_stick.normalized_x == 1 ? 1 : 0;
+
+        gamepad->a = state.digital_inputs & SGAMEPAD_BUTTON_A ? 1 : 0;
+        gamepad->b = state.digital_inputs & SGAMEPAD_BUTTON_B ? 1 : 0;
+        gamepad->x = state.digital_inputs & SGAMEPAD_BUTTON_X ? 1 : 0;
+        gamepad->y = state.digital_inputs & SGAMEPAD_BUTTON_Y ? 1 : 0;
+
+        if(state.digital_inputs & SGAMEPAD_BUTTON_BACK)
+        {
+            app->input.keyboard.keys[0] = tic_key_escape;
+        }
+    }
+}
+
 static void frame(void *userdata)
 {
     App *app = userdata;
@@ -351,6 +389,7 @@ static void frame(void *userdata)
 
     handleMouse(app);
     handleKeyboard(app);
+    handleGamepad(app);
     studio_tick(app->studio, app->input);
 
     app->input.mouse.relative = studio_mem(app->studio)->ram->input.mouse.relative;
@@ -662,6 +701,7 @@ static void cleanup(void *userdata)
 
     free(app);
 
+    sgamepad_shutdown();
     sgl_shutdown();
     sg_shutdown();
     saudio_shutdown();
@@ -669,20 +709,12 @@ static void cleanup(void *userdata)
 
 sapp_desc sokol_main(s32 argc, char* argv[])
 {
-#if defined(__TIC_WINDOWS__)
-    {
-        CONSOLE_SCREEN_BUFFER_INFO info;
-        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info) && !info.dwCursorPosition.X && !info.dwCursorPosition.Y)
-            FreeConsole();
-    }
-#endif
-
     App *app = NEW(App);
     memset(app, 0, sizeof *app);
 
     app->audio.desc.num_channels = TIC80_SAMPLE_CHANNELS;
     saudio_setup(&app->audio.desc);
-
+    
     app->studio = studio_create(argc, argv, saudio_sample_rate(), TIC80_PIXEL_COLOR_RGBA8888, "./", INT32_MAX, tic_layout_qwerty, app);
 
     if(studio_config(app->studio)->cli)

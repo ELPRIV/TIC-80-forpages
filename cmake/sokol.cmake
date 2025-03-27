@@ -3,39 +3,41 @@
 ################################
 
 if(BUILD_SOKOL)
-set(SOKOL_LIB_SRC ${CMAKE_SOURCE_DIR}/src/system/sokol/sokol.c)
 
-add_library(sokol STATIC ${SOKOL_LIB_SRC})
+    set(SOKOL_LIB_SRC ${CMAKE_SOURCE_DIR}/src/system/sokol/sokol.c)
 
-if(APPLE)
-    target_compile_definitions(sokol PUBLIC SOKOL_METAL)
-elseif(LINUX)
-    target_compile_definitions(sokol PUBLIC SOKOL_GLCORE)
-elseif(WIN32)
-    target_compile_definitions(sokol PUBLIC SOKOL_D3D11)
-elseif(EMSCRIPTEN)
-    target_compile_definitions(sokol PUBLIC SOKOL_WGPU)
-endif()
+    add_library(sokol STATIC ${SOKOL_LIB_SRC})
 
-if(APPLE)
+    if(APPLE)
+        target_compile_definitions(sokol PUBLIC SOKOL_METAL)
+    elseif(LINUX)
+        target_compile_definitions(sokol PUBLIC SOKOL_GLCORE)
+    elseif(WIN32)
+        target_compile_definitions(sokol PUBLIC SOKOL_D3D11 UNICODE)
+    elseif(EMSCRIPTEN)
+        target_compile_definitions(sokol PUBLIC SOKOL_WGPU)
+    endif()
 
-    target_compile_options(sokol PRIVATE -x objective-c)
+    if(APPLE)
 
-    target_link_libraries(sokol
-        "-framework Cocoa"
-        "-framework QuartzCore"
-        "-framework Metal"
-        "-framework MetalKit"
-        "-framework AudioToolbox"
-    )
+        target_compile_options(sokol PRIVATE -x objective-c)
 
-elseif(LINUX)
-    target_link_libraries(sokol X11 GL Xi Xcursor m dl asound)
-elseif(WIN32)
-    target_link_libraries(sokol D3D11)
-endif()
+        target_link_libraries(sokol PRIVATE
+            "-framework Cocoa"
+            "-framework IOKit"
+            "-framework QuartzCore"
+            "-framework Metal"
+            "-framework MetalKit"
+            "-framework AudioToolbox"
+        )
 
-target_include_directories(sokol PRIVATE ${THIRDPARTY_DIR}/sokol)
+    elseif(LINUX)
+        target_link_libraries(sokol PRIVATE X11 GL Xi Xcursor m dl asound)
+    elseif(WIN32)
+        target_link_libraries(sokol PRIVATE D3D11)
+    endif()
+
+    target_include_directories(sokol PRIVATE ${THIRDPARTY_DIR}/sokol)
 endif()
 
 ################################
@@ -51,7 +53,7 @@ if(BUILD_PLAYER AND BUILD_SOKOL)
         ${THIRDPARTY_DIR}/sokol
         ${CMAKE_SOURCE_DIR}/src)
 
-    target_link_libraries(player-sokol tic80core sokol)
+    target_link_libraries(player-sokol PRIVATE tic80core sokol)
 endif()
 
 ################################
@@ -96,6 +98,6 @@ if(BUILD_SOKOL)
         ${CMAKE_SOURCE_DIR}/src
         ${THIRDPARTY_DIR}/sokol)
 
-    target_link_libraries(tic80 tic80studio sokol)
+    target_link_libraries(tic80 PRIVATE tic80studio sokol)
 
 endif()
