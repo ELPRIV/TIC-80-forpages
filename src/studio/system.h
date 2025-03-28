@@ -59,7 +59,6 @@ u64     tic_sys_counter_get();
 u64     tic_sys_freq_get();
 bool    tic_sys_fullscreen_get();
 void    tic_sys_fullscreen_set(bool value, void *userdata);
-void    tic_sys_message(const char* title, const char* message);
 void    tic_sys_title(const char* title);
 void    tic_sys_open_path(const char* path);
 void    tic_sys_open_url(const char* path);

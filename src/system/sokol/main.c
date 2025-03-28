@@ -115,16 +115,20 @@ bool tic_sys_fullscreen_get()
     return sapp_is_fullscreen();
 }
 
-void tic_sys_message(const char* title, const char* message)
-{
-}
-
 void tic_sys_title(const char* title)
 {
+    // !TODO: change window title
 }
 
-void tic_sys_open_path(const char* path) {}
-void tic_sys_open_url(const char* url) {}
+void tic_sys_open_path(const char* path)
+{
+    ssys_open_folder(path);
+}
+
+void tic_sys_open_url(const char* url) 
+{
+    ssys_open_url(url);
+}
 
 void tic_sys_preseed()
 {
@@ -139,7 +143,7 @@ void tic_sys_preseed()
 
 void tic_sys_update_config()
 {
-
+// !TODO: update touch gemapad or keyboard
 }
 
 void tic_sys_default_mapping(tic_mapping* mapping)

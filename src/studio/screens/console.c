@@ -1628,10 +1628,9 @@ static void onFolderCommand(Console* console)
 
     printBack(console, "\nStorage path:\n");
     printFront(console, tic_fs_pathroot(console->fs, ""));
+    commandDone(console);
 
     tic_fs_openfolder(console->fs);
-
-    commandDone(console);
 }
 
 static void onClsCommand(Console* console)

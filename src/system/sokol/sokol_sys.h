@@ -27,6 +27,8 @@ extern "C" {
 #endif
 
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app);
+SOKOL_API_DECL void ssys_open_folder(const char *folder);
+SOKOL_API_DECL void ssys_open_url(const char *url);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -54,6 +56,9 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app);
     #endif
 #endif
 
+typedef char _sbuf[256];
+typedef wchar_t _wsbuf[sizeof(_sbuf)];
+
 #if defined(_SAPP_APPLE)
 
 #include <sys/stat.h>
@@ -61,7 +66,7 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app);
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
     @autoreleasepool {
-        static char result[1024];
+        static _sbuf result;
         NSArray *array;
 
         if (!app) 
@@ -110,31 +115,80 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
     }
 }
 
+SOKOL_API_DECL void ssys_open_folder(const char *folder)
+{
+    ssys_open_url(folder);
+}
+
+SOKOL_API_DECL void ssys_open_url(const char *url)
+{
+    _sbuf command;
+    snprintf(command, _countof(command), "open \"%s\"", url);
+    system(command);
+}
+
 #elif defined(_SAPP_WIN32)
+
+#include <shlobj.h>
 
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
-    //SHGetKnownFolderPath(SDL_FOLDERID_RoamingAppData, KF_FLAG_CREATE, NULL, &wszPath);
+    static _sbuf result;
+    PWSTR path;
+    HRESULT hr = SHGetKnownFolderPath(&FOLDERID_RoamingAppData, KF_FLAG_CREATE, NULL, &path);
 
-    return "";
+    if (!SUCCEEDED(hr))
+    {
+        return NULL;
+    }
+
+    wcstombs(result, path, _countof(result));
+    CoTaskMemFree(path);
+
+    if(org)
+    {
+        strcat(result, "\\");
+        strcat(result, org);
+
+        _wsbuf path;
+        mbstowcs(path, result, _countof(path));
+        CreateDirectoryW(path, NULL);
+    }
+
+    if(app)
+    {
+        strcat(result, "\\");
+        strcat(result, app);
+
+        _wsbuf path;
+        mbstowcs(path, result, _countof(path));
+        CreateDirectoryW(path, NULL);
+    }
+
+    strcat(result, "\\");
+
+    return result;
+}
+
+SOKOL_API_DECL void ssys_open_folder(const char *folder)
+{
+    ssys_open_url(folder);
+}
+
+SOKOL_API_DECL void ssys_open_url(const char *url)
+{
+    _wsbuf wurl;
+    mbstowcs(wurl, url, _countof(wurl));
+    ShellExecuteW(NULL, L"open", wurl, NULL, NULL, SW_SHOWNORMAL);
 }
 
 #elif defined(_SAPP_LINUX)
 
-#include <stdio.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
-    static char result[1024];
+    static _sbuf result;
 
     const char *envr = getenv("XDG_DATA_HOME");
     const char *append;
@@ -196,6 +250,18 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
     return result;
 }
 
+SOKOL_API_DECL void ssys_open_folder(const char *folder)
+{
+    ssys_open_url(folder);
+}
+
+SOKOL_API_DECL void ssys_open_url(const char *url)
+{
+    _sbuf command;
+    snprintf(command, _countof(command), "xdg-open \"%s\"", url);
+    system(command);
+}
+
 #elif defined(_SAPP_EMSCRIPTEN)
 
 #include <stdio.h>
@@ -204,7 +270,7 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
-    static char result[1024];
+    static _sbuf result;
 
     snprintf(result, sizeof result, "%s/%s/", org, app);
     
@@ -229,11 +295,12 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
     return result;
 }
 
-#else
-
-SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
+SOKOL_API_DECL void ssys_open_url(const char *url)
 {
-    return "";
+    EM_ASM_(
+    {
+        window.open(UTF8ToString($0))
+    }, url);
 }
 
 #endif

@@ -123,10 +123,6 @@ bool tic_sys_fullscreen_get()
 {
 }
 
-void tic_sys_message(const char* title, const char* message)
-{
-}
-
 void tic_sys_title(const char* title)
 {
 }
