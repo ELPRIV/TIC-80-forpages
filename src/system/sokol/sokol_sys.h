@@ -138,7 +138,7 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 
     const char *envr = getenv("XDG_DATA_HOME");
     const char *append;
-    
+
     char *ptr = NULL;
 
     if (!app) 
@@ -198,11 +198,33 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 
 #elif defined(_SAPP_EMSCRIPTEN)
 
+#include <stdio.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
     static char result[1024];
 
-    snprintf(result, sizeof result, "/%s/%s/", org, app);
+    snprintf(result, sizeof result, "%s/%s/", org, app);
+    
+    for (char *ptr = result + 1; *ptr; ptr++)
+    {
+        if (*ptr == '/') 
+        {
+            *ptr = '\0';
+            if (mkdir(result, 0700) != 0 && errno != EEXIST) 
+            {
+                goto error;
+            }
+            *ptr = '/';
+        }
+    }
+    if (mkdir(result, 0700) != 0 && errno != EEXIST) 
+    {
+    error:
+        return NULL;
+    }
 
     return result;
 }
