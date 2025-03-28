@@ -35,3 +35,4 @@
 #endif
 
 #include "sokol_gamepad.h"
+#include "sokol_sys.h"

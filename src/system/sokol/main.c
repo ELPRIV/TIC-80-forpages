@@ -743,7 +743,8 @@ sapp_desc sokol_main(s32 argc, char* argv[])
     app->audio.desc.num_channels = TIC80_SAMPLE_CHANNELS;
     saudio_setup(&app->audio.desc);
     
-    app->studio = studio_create(argc, argv, saudio_sample_rate(), TIC80_PIXEL_COLOR_RGBA8888, "./", INT32_MAX, tic_layout_qwerty, app);
+    const char* path = ssys_app_folder(TIC_PACKAGE, TIC_NAME);
+    app->studio = studio_create(argc, argv, saudio_sample_rate(), TIC80_PIXEL_COLOR_RGBA8888, path, INT32_MAX, tic_layout_qwerty, app);
 
     if(studio_config(app->studio)->cli)
     {
