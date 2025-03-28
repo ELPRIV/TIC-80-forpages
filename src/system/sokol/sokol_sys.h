@@ -295,6 +295,8 @@ SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
     return result;
 }
 
+SOKOL_API_DECL void ssys_open_folder(const char *folder){}
+
 SOKOL_API_DECL void ssys_open_url(const char *url)
 {
     EM_ASM_(
