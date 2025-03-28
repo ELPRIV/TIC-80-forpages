@@ -130,12 +130,15 @@ SOKOL_API_DECL void ssys_open_url(const char *url)
 #elif defined(_SAPP_WIN32)
 
 #include <shlobj.h>
+#include <initguid.h>
+
+DEFINE_GUID(_FOLDERID_RoamingAppData, 0x3EB685DB, 0x65F9, 0x4CF6, 0xA0, 0x3A, 0xE3, 0xEF, 0x65, 0x72, 0x9F, 0x3D);
 
 SOKOL_API_DECL const char* ssys_app_folder(const char *org, const char *app)
 {
     static _sbuf result;
     PWSTR path;
-    HRESULT hr = SHGetKnownFolderPath(&FOLDERID_RoamingAppData, KF_FLAG_CREATE, NULL, &path);
+    HRESULT hr = SHGetKnownFolderPath(&_FOLDERID_RoamingAppData, KF_FLAG_CREATE, NULL, &path);
 
     if (!SUCCEEDED(hr))
     {
