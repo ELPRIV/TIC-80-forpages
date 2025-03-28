@@ -552,10 +552,10 @@ void setSpritePixel(tic_tile* tiles, s32 x, s32 y, u8 color)
     tic_tool_poke4(getSpritePtr(tiles, x, y), (x % TIC_SPRITESIZE) + (y % TIC_SPRITESIZE) * TIC_SPRITESIZE, color);
 }
 
-u8 getSpritePixel(tic_tile* tiles, s32 x, s32 y)
+u8 getSpritePixel(const tic_tile* tiles, s32 x, s32 y)
 {
     // TODO: check spritesheet rect
-    return tic_tool_peek4(getSpritePtr(tiles, x, y), (x % TIC_SPRITESIZE) + (y % TIC_SPRITESIZE) * TIC_SPRITESIZE);
+    return tic_tool_peek4(getSpritePtr((tic_tile*)tiles, x, y), (x % TIC_SPRITESIZE) + (y % TIC_SPRITESIZE) * TIC_SPRITESIZE);
 }
 
 #if defined(BUILD_EDITORS)

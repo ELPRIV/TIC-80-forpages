@@ -29,7 +29,7 @@
 
 #include "sokol.h"
 
-#include "studio/system.h"
+#include "studio/studio.h"
 #include "crt.h"
 
 #define CRT_SCALE 4
@@ -348,21 +348,23 @@ static void handleGamepad(App *app)
         case 3: gamepad = &gamepads->fourth; break;
         }
 
+        const float threshold = 0.8f;
+
         gamepad->up = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_UP
-            || (s32)state.left_stick.normalized_y == -1
-            || (s32)state.right_stick.normalized_y == -1 ? 1 : 0;
+            || state.left_stick.normalized_y <= -threshold
+            || state.right_stick.normalized_y <= -threshold ? 1 : 0;
 
         gamepad->down = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_DOWN
-            || (s32)state.left_stick.normalized_y == 1
-            || (s32)state.right_stick.normalized_y == 1 ? 1 : 0;
+            || state.left_stick.normalized_y >= threshold
+            || state.right_stick.normalized_y >= threshold ? 1 : 0;
 
         gamepad->left = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_LEFT
-            || (s32)state.left_stick.normalized_x == -1
-            || (s32)state.right_stick.normalized_x == -1 ? 1 : 0;
+            || state.left_stick.normalized_x <= -threshold
+            || state.right_stick.normalized_x <= -threshold ? 1 : 0;
 
         gamepad->right = state.digital_inputs & SGAMEPAD_BUTTON_DPAD_RIGHT
-            || (s32)state.left_stick.normalized_x == 1
-            || (s32)state.right_stick.normalized_x == 1 ? 1 : 0;
+            || state.left_stick.normalized_x >= threshold
+            || state.right_stick.normalized_x >= threshold ? 1 : 0;
 
         gamepad->a = state.digital_inputs & SGAMEPAD_BUTTON_A ? 1 : 0;
         gamepad->b = state.digital_inputs & SGAMEPAD_BUTTON_B ? 1 : 0;
@@ -707,6 +709,32 @@ static void cleanup(void *userdata)
     saudio_shutdown();
 }
 
+static const sapp_icon_desc iconDesc(App *app)
+{
+    enum{ IconSize = 64, TileSize = 16, ColorKey = 14, Scale = IconSize / TileSize};
+    static u32 pixels[IconSize * IconSize];
+
+    tic_blitpal pal = tic_tool_palette_blit(&studio_config(app->studio)->cart->bank0.palette.vbank0, TIC80_PIXEL_COLOR_RGBA8888);
+
+    for(s32 i = 0; i < IconSize * IconSize; i++)
+    {
+        u8 color = getSpritePixel(studio_config(app->studio)->cart->bank0.tiles.data, (i % IconSize) / Scale, (i / IconSize) / Scale);
+        pixels[i] = color == ColorKey ? 0 : pal.data[color];
+    }
+
+    return (sapp_icon_desc)
+        {
+            .images = 
+            {
+                { 
+                    .width = IconSize, 
+                    .height = IconSize, 
+                    .pixels = SAPP_RANGE(pixels),
+                }
+            }
+        };
+}
+
 sapp_desc sokol_main(s32 argc, char* argv[])
 {
     App *app = NEW(App);
@@ -744,5 +772,6 @@ sapp_desc sokol_main(s32 argc, char* argv[])
 #endif
         .enable_clipboard = true,
         .clipboard_size = TIC_CODE_SIZE,
+        .icon = iconDesc(app),
     };
 }

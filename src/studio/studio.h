@@ -242,7 +242,7 @@ void setStudioEvent(Studio* studio, StudioEvent event);
 void showTooltip(Studio* studio, const char* text);
 
 void setSpritePixel(tic_tile* tiles, s32 x, s32 y, u8 color);
-u8 getSpritePixel(tic_tile* tiles, s32 x, s32 y);
+u8 getSpritePixel(const tic_tile* tiles, s32 x, s32 y);
 
 typedef void(*ConfirmCallback)(Studio* studio, bool yes, void* data);
 void confirmDialog(Studio* studio, const char** text, s32 rows, ConfirmCallback callback, void* data);
