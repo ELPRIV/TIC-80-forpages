@@ -31,12 +31,6 @@
 #define DEFAULT_VSYNC 1
 #endif
 
-#if defined(__TIC_ANDROID__)
-#define INTEGER_SCALE_DEFAULT false
-#else
-#define INTEGER_SCALE_DEFAULT true
-#endif
-
 #define JSON(...) #__VA_ARGS__
 
 static void readConfig(Config* config)
@@ -89,11 +83,11 @@ static void setDefault(Config* config)
         .uiScale = 4,
         .options =
         {
-            .crt            = false,
+            .crt            = true,
             .volume         = MAX_VOLUME,
             .vsync          = DEFAULT_VSYNC,
             .fullscreen     = false,
-            .integerScale   = INTEGER_SCALE_DEFAULT,
+            .integerScale   = false,
             .autosave       = false,
 #if defined(BUILD_EDITORS)
             .keybindMode    = KEYBIND_STANDARD,

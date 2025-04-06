@@ -304,16 +304,24 @@ typedef struct
     float x, y, w, h;
 } Rect;
 
-static Rect viewport()
+static Rect viewport(App *app)
 {
-    float widthRatio = sapp_widthf() / TIC80_FULLWIDTH;
-    float heightRatio = sapp_heightf() / TIC80_FULLHEIGHT;
-    float optimalSize = widthRatio < heightRatio ? widthRatio : heightRatio;
+    float sw = sapp_widthf();
+    float sh = sapp_heightf();
 
+    if(studio_config(app->studio)->options.integerScale)
+    {
+        sw -= sapp_width() % TIC80_FULLWIDTH;
+        sh -= sapp_height() % TIC80_FULLHEIGHT;
+    }
+
+    float widthRatio = sw / TIC80_FULLWIDTH;
+    float heightRatio = sh / TIC80_FULLHEIGHT;
+    float optimalSize = widthRatio < heightRatio ? widthRatio : heightRatio;
     float w = TIC80_FULLWIDTH * optimalSize;
     float h = TIC80_FULLHEIGHT * optimalSize;
-    float x = sapp_widthf() / 2 - w / 2;
-    float y = sapp_heightf() / 2 - h / 2;
+    float x = (sapp_widthf() - w) / 2;
+    float y = (sapp_heightf() - h) / 2;
 
     return (Rect){x, y, w, h};
 }
@@ -449,7 +457,7 @@ static void frame(void *userdata)
 
     if(studio_config(app->studio)->options.crt)
     {
-        drawImage(viewport(), app->crt.image, app->linear);
+        drawImage(viewport(app), app->crt.image, app->linear);
 
         // draw crt
         sg_begin_pass(&(sg_pass)
@@ -462,7 +470,7 @@ static void frame(void *userdata)
     }
     else
     {
-        drawImage(viewport(), app->image, app->nearest);
+        drawImage(viewport(app), app->image, app->nearest);
     }
 
     // draw screen
@@ -473,7 +481,7 @@ static void frame(void *userdata)
             .colors[0] = 
             {
                 .load_action = SG_LOADACTION_CLEAR,
-                .clear_value = sg_make_color_1i(0xff0000ff),
+                .clear_value = sg_make_color_1i(0x000000ff),
             },
         },
         .swapchain = sglue_swapchain()
@@ -663,7 +671,7 @@ static void event(const sapp_event* event, void *userdata)
         break;
     case SAPP_EVENTTYPE_MOUSE_MOVE:
         {
-            Rect r = viewport();
+            Rect r = viewport(app);
 
             app->mouse.x = (event->mouse_x - r.x) * TIC80_FULLWIDTH / r.w;
             app->mouse.y = (event->mouse_y - r.y) * TIC80_FULLHEIGHT / r.h;
